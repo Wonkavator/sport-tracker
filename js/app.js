@@ -385,7 +385,8 @@ function renderDashboard() {
         dayData.entries.forEach(entry => {
             const block = document.createElement('div');
             block.className = `entry-block ${entry.catId}`;
-            const exName = getExerciseById(entry.exerciseId)?.name || 'Eintrag';
+            const ex = getExerciseById(entry.exerciseId);
+            const exName = ex ? ex.name : 'Eintrag';
             block.title = `${exName} (Zum Bearbeiten klicken)`;
 
             // Add name label to block
@@ -481,9 +482,10 @@ function renderAnalysis() {
 
     allEntries.forEach(entry => {
         if (!exerciseStats[entry.exerciseId]) {
+            const ex = getExerciseById(entry.exerciseId);
             exerciseStats[entry.exerciseId] = {
                 id: entry.exerciseId,
-                name: getExerciseById(entry.exerciseId)?.name || 'Unbekannt',
+                name: ex ? ex.name : 'Unbekannt',
                 catId: entry.catId,
                 totals: {
                     duration: 0,
