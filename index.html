@@ -5,13 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Training Tracker</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="css/styles.css?v=16">
+    <link rel="stylesheet" href="css/styles.css?v=15">
 
-    <!-- Polyfills for old Android browsers (Silk/WebView) via core-js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.35.1/minified.js"></script>
-    <!-- Babel standalone to transpile ES6 (Arrow Functions, etc.) to ES5 on-the-fly -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Mobile Drag and Drop Polyfill -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@3.0.0-rc.0/default.css">
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@3.0.0-rc.0/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@3.0.0-rc.0/scroll-behaviour.min.js"></script>
+    <script>
+        // Options are optional
+        MobileDragDrop.polyfill({
+            // use this to make use of the scroll behaviour
+            dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride
+        });
+    </script>
 </head>
 
 <body>
@@ -125,7 +131,7 @@
                     </div>
 
                     <p style="margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold;">Benötigte Eingabefelder
-                        (Ziehen & Ablegen)</p>
+                        (Ziehen & Ablegen oder Antippen)</p>
                     <div class="dnd-container" style="display: flex; gap: 1rem;">
                         <div class="dnd-column">
                             <h4>Verfügbar</h4>
@@ -217,21 +223,9 @@
 
     <!-- Chart.js via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Load custom scripts through Babel for ES5 compatibility -->
-    <script type="text/babel" src="js/data.js?v=16"></script>
-    <script type="text/babel" src="js/storage.js?v=16"></script>
-    <script type="text/babel" src="js/app.js?v=16"></script>
-    <script>
-        // Register Service Worker for PWA / Offline capability
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered', reg))
-                    .catch(err => console.error('Service Worker registration failed', err));
-            });
-        }
-    </script>
+    <script src="js/data.js?v=20"></script>
+    <script src="js/storage.js?v=20"></script>
+    <script src="js/app.js?v=20"></script>
 </body>
 
 </html>

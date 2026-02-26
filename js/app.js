@@ -31,15 +31,9 @@ function init() {
     // Run custom exercises check and logic
     initCustomExercisesStorage();
 
-    // Check if we need to migrate default exercises
-    if (getCustomExercises().length === 0) {
-        initAndMigrateExercises();
-    }
+    // Perform migration and load data into app memory
+    loadCustomExercises();
 
-    // Load data into app memory
-    appData.exercises = getCustomExercises();
-
-    // Auto-scrub orphaned entries (hotfix for previous deletion bug)
     // Auto-scrub orphaned entries (hotfix for previous deletion bug)
     let entries = getAllEntries();
     let validIds = appData.exercises.map(e => e.id);
@@ -65,7 +59,6 @@ function init() {
         btn.addEventListener('click', handleTabClick);
     });
 
-    loadCustomExercises();
     setupTheme();
     setupNavigation();
     setupSettingsView(); // Init drag and drop and settings logic
@@ -691,6 +684,22 @@ function setupSettingsView() {
         el.draggable = true;
         el.dataset.id = inputId;
         el.textContent = def.label;
+        el.style.cursor = 'pointer'; // Indicate it's clickable
+
+        // Touch/Click support for mobile
+        el.addEventListener('click', function () {
+            if (this.parentElement.id === 'dnd-available') {
+                const placeholder = selectedZone.querySelector('.placeholder-text');
+                if (placeholder) placeholder.remove();
+                selectedZone.appendChild(this);
+            } else {
+                availableZone.appendChild(this);
+                if (selectedZone.children.length === 0) {
+                    selectedZone.innerHTML = '<p class="placeholder-text">Ziehe Felder hierher</p>';
+                }
+            }
+        });
+
         availableZone.appendChild(el);
     });
 
@@ -873,20 +882,122 @@ function renderCustomExercisesList() {
     if (activeExercises.length === 0) {
         listContainer.innerHTML = '<p>Noch keine Übungen hier.</p>';
     } else {
-        activeExercises.sort((a, b) => a.name.localeCompare(b.name));
-        activeExercises.forEach(ex => {
+        // Removed alphabetical sort to respect user's custom order
+
+        let draggedNode = null;
+
+        activeExercises.forEach((ex, index) => {
             const item = document.createElement('div');
             item.className = `custom-ex-item ${ex.catId}`;
-            item.style.cursor = 'pointer';
-            item.title = "Klicken zum Bearbeiten";
+            item.style.cursor = 'grab';
+            item.title = "Klicken zum Bearbeiten, Ziehen zum Sortieren";
+            item.draggable = true;
+            item.dataset.id = ex.id;
+
+            // Drag and Drop Logic for Sorting
+            item.addEventListener('dragstart', function (e) {
+                draggedNode = this;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                // Need a small timeout so the element doesn't disappear immediately while dragging
+                setTimeout(() => this.style.opacity = '0.5', 0);
+            });
+
+            item.addEventListener('dragend', function () {
+                draggedNode = null;
+                this.classList.remove('dragging');
+                this.style.opacity = '1';
+                document.querySelectorAll('.custom-ex-item').forEach(el => {
+                    el.style.borderTop = 'none';
+                    el.style.borderBottom = 'none';
+                });
+            });
+
+            item.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+
+                if (draggedNode && draggedNode !== this) {
+                    // Reset all borders
+                    document.querySelectorAll('.custom-ex-item').forEach(el => {
+                        el.style.borderTop = 'none';
+                        el.style.borderBottom = 'none';
+                    });
+
+                    // Determine mouse position relative to center of target
+                    const bounding = this.getBoundingClientRect();
+                    const offset = bounding.y + (bounding.height / 2);
+
+                    // Note: mobile drag-drop polyfill touch events use clientY too, but sometimes pageY. 
+                    // e.clientY works for modern native drag and drop.
+                    const yPos = e.clientY !== undefined ? e.clientY : (e.touches ? e.touches[0].clientY : 0);
+
+                    if (yPos - offset > 0) {
+                        this.style.borderBottom = '8px solid var(--text-color)';
+                        this.dataset.dropPosition = 'after';
+                    } else {
+                        this.style.borderTop = '8px solid var(--text-color)';
+                        this.dataset.dropPosition = 'before';
+                    }
+                }
+            });
+
+            item.addEventListener('dragleave', function () {
+                this.style.borderTop = 'none';
+                this.style.borderBottom = 'none';
+                delete this.dataset.dropPosition;
+            });
+
+            item.addEventListener('drop', function (e) {
+                e.preventDefault();
+                const dropPos = this.dataset.dropPosition;
+                this.style.borderTop = 'none';
+                this.style.borderBottom = 'none';
+                delete this.dataset.dropPosition;
+
+                if (draggedNode && draggedNode !== this) {
+                    const draggedId = draggedNode.dataset.id;
+                    const targetId = this.dataset.id;
+
+                    // Reorder in memory
+                    let exercises = getCustomExercises();
+                    const draggedIndex = exercises.findIndex(e => e.id === draggedId);
+
+                    if (draggedIndex > -1) {
+                        const [movedEx] = exercises.splice(draggedIndex, 1);
+
+                        // Recalculate target index because array length changed
+                        let newTargetIndex = exercises.findIndex(e => e.id === targetId);
+
+                        if (dropPos === 'after') {
+                            newTargetIndex += 1;
+                        }
+
+                        exercises.splice(newTargetIndex, 0, movedEx);
+
+                        // Save new order
+                        localStorage.setItem('training_tracker_custom_exercises', JSON.stringify(exercises));
+                        appData.exercises = exercises;
+
+                        // Re-render
+                        renderCustomExercisesList();
+                        renderExerciseList();
+                    }
+                }
+            });
 
             const titleSpan = document.createElement('span');
-            titleSpan.textContent = ex.name + " ✏️";
+            titleSpan.innerHTML = "<span style='font-size: 1.8rem; margin-right: 15px; flex-shrink: 0;'>☰</span> <span style='word-break: break-word;'>" + ex.name + "</span>";
             titleSpan.style.fontWeight = 'bold';
+            titleSpan.style.display = 'flex';
+            titleSpan.style.alignItems = 'center';
+            titleSpan.style.flex = '1 1 150px';
+            titleSpan.style.minWidth = '0';
 
             const delBtn = document.createElement('button');
             delBtn.type = 'button';
             delBtn.textContent = 'Archivieren';
+            delBtn.style.flex = '0 0 auto';
 
             delBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -916,10 +1027,16 @@ function renderCustomExercisesList() {
 
                 const titleSpan = document.createElement('span');
                 titleSpan.textContent = ex.name;
+                titleSpan.style.fontWeight = 'bold';
+                titleSpan.style.flex = '1 1 150px';
+                titleSpan.style.minWidth = '0';
+                titleSpan.style.wordBreak = 'break-word';
 
                 const btnContainer = document.createElement('div');
                 btnContainer.style.display = 'flex';
                 btnContainer.style.gap = '0.5rem';
+                btnContainer.style.flexWrap = 'wrap';
+                btnContainer.style.flex = '0 0 auto';
 
                 const restoreBtn = document.createElement('button');
                 restoreBtn.type = 'button';
