@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
 
-    <link rel="stylesheet" href="css/styles.css?v=21">
+    <link rel="stylesheet" href="css/styles.css?v=23">
 
     <!-- Mobile Drag and Drop Polyfill -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@3.0.0-rc.0/default.css">
@@ -33,7 +33,7 @@
     <header class="app-header">
         <div class="header-top" style="display: flex; justify-content: space-between; align-items: center;">
             <div style="width: 40px;"></div> <!-- Spacer for centering -->
-            <h1>Christophs Training</h1>
+            <h1>Übungstracker</h1>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 <button id="theme-toggle" class="nav-btn"
                     style="background: none; border: none; font-size: 1.5rem; padding: 0.5rem; box-shadow: none; cursor: pointer;">🌙</button>
@@ -110,6 +110,16 @@
             <div id="analysis-chart-container" style="display: none; margin-top: 1rem;">
                 <button id="btn-close-chart" class="back-btn">&larr; Zurück zur Übersicht</button>
                 <h3 id="chart-title" style="text-align: center; margin-bottom: 1rem;"></h3>
+
+                <div class="chart-filters"
+                    style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 1rem;">
+                    <button class="filter-btn active" data-filter="day-7">7 Tage</button>
+                    <button class="filter-btn" data-filter="day-30">30 Tage</button>
+                    <button class="filter-btn" data-filter="day">Alle</button>
+                    <button class="filter-btn" data-filter="week">Wochen</button>
+                    <button class="filter-btn" data-filter="month">Monate</button>
+                </div>
+
                 <div style="position: relative; height: 50vh; width: 100%;">
                     <canvas id="exerciseChart"></canvas>
                 </div>
@@ -232,9 +242,9 @@
 
     <!-- Chart.js via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="js/data.js?v=21"></script>
-    <script src="js/storage.js?v=21"></script>
-    <script src="js/app.js?v=21"></script>
+    <script src="js/data.js?v=23"></script>
+    <script src="js/storage.js?v=23"></script>
+    <script src="js/app.js?v=23"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

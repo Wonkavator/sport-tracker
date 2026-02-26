@@ -546,80 +546,284 @@ function renderAnalysis() {
     });
 }
 
-function showChartForExercise(statInfo) {
+let currentChartStatInfo = null;
+
+function showChartForExercise(statInfo, filter = 'day-7') {
+    currentChartStatInfo = statInfo;
     document.getElementById('analysis-list-container').style.display = 'none';
     const chartContainer = document.getElementById('analysis-chart-container');
     chartContainer.style.display = 'block';
 
     document.getElementById('chart-title').textContent = statInfo.name;
 
+    // Filter UI setup
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === filter) btn.classList.add('active');
+
+        // Remove old listeners to avoid duplicates, then add new
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.addEventListener('click', () => {
+            showChartForExercise(currentChartStatInfo, newBtn.dataset.filter);
+        });
+    });
+
+    // Helper functions for grouping dates
+    const getLabelForDay = (dateObj) => `${dateObj.getDate()}.${dateObj.getMonth() + 1}.`;
+
+    // ISO Week number logic
+    const getWeekNumber = (d) => {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return { year: d.getUTCFullYear(), week: weekNo };
+    };
+
+    const getLabelForWeek = (dateObj) => {
+        const wk = getWeekNumber(dateObj);
+        return `KW ${wk.week} "${wk.year.toString().slice(-2)}`;
+    };
+
+    const getLabelForMonth = (dateObj) => {
+        const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+        return `${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+    };
+
     // Sort entries by timestamp
     const sortedEntries = [...statInfo.entries].sort((a, b) => a.timestamp - b.timestamp);
 
-    const labels = sortedEntries.map(e => {
+    // Filter entries by date range if applicable
+    let cutoffDate = null;
+    const groupedData = {};
+
+    if (filter === 'day-7') {
+        cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 6);
+        cutoffDate.setHours(0, 0, 0, 0);
+    } else if (filter === 'day-30') {
+        cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 29);
+        cutoffDate.setHours(0, 0, 0, 0);
+    }
+
+    if (filter.startsWith('day')) {
+        const days = filter === 'day-7' ? 7 : 30;
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            d.setHours(0, 0, 0, 0);
+            const groupKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+            groupedData[groupKey] = {
+                distance: 0, duration: 0, reps: 0, rounds: 0, repsLeft: 0, repsRight: 0, maxDurationSec: 0,
+                dateObj: new Date(d),
+                entries: []
+            };
+        }
+    }
+
+    let entriesToProcess = sortedEntries;
+    if (cutoffDate) {
+        entriesToProcess = sortedEntries.filter(e => new Date(e.timestamp) >= cutoffDate);
+    }
+
+    entriesToProcess.forEach(e => {
         const d = new Date(e.timestamp);
-        return `${d.getDate()}.${d.getMonth() + 1}.`;
+        let groupKey = '';
+        if (filter.startsWith('day')) {
+            groupKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+        } else if (filter === 'week') {
+            const wk = getWeekNumber(d);
+            groupKey = `${wk.year}-W${wk.week.toString().padStart(2, '0')}`;
+        } else if (filter === 'month') {
+            groupKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+        }
+
+        if (!groupedData[groupKey]) {
+            groupedData[groupKey] = {
+                distance: 0, duration: 0, reps: 0, rounds: 0, repsLeft: 0, repsRight: 0, maxDurationSec: 0,
+                dateObj: d,
+                entries: []
+            };
+        }
+
+        if (filter.startsWith('day')) {
+            groupedData[groupKey].entries.push(e);
+        } else {
+            groupedData[groupKey].distance += parseFloat(e.inputs.distance || 0);
+            groupedData[groupKey].duration += parseFloat(e.inputs.duration || 0);
+            groupedData[groupKey].reps += parseInt(e.inputs.reps || 0);
+            groupedData[groupKey].rounds += parseInt(e.inputs.rounds || 0);
+            groupedData[groupKey].repsLeft += parseInt(e.inputs.repsLeft || 0);
+            groupedData[groupKey].repsRight += parseInt(e.inputs.repsRight || 0);
+
+            const mDur = parseInt(e.inputs.maxDurationSec || 0);
+            if (mDur > groupedData[groupKey].maxDurationSec) {
+                groupedData[groupKey].maxDurationSec = mDur;
+            }
+        }
     });
 
-    // Determine the main metric to plot
-    let datasets = [];
+    const groupKeys = Object.keys(groupedData).sort();
 
-    if (statInfo.id === 'ex-1' || statInfo.id === 'ex-2') {
-        // Dual-axis chart for Distance and Duration
+    const labels = [];
+    const distanceData = [];
+    const durationData = [];
+    const repsData = [];
+    const roundsData = [];
+    const repsLeftData = [];
+    const repsRightData = [];
+    const maxDurationSecData = [];
+
+    groupKeys.forEach(key => {
+        const group = groupedData[key];
+        const dObj = group.dateObj;
+
+        if (filter.startsWith('day')) {
+            const dayLabel = getLabelForDay(dObj);
+            if (group.entries && group.entries.length > 0) {
+                group.entries.forEach(e => {
+                    labels.push(dayLabel);
+                    distanceData.push(parseFloat(e.inputs.distance || 0));
+                    durationData.push(parseFloat(e.inputs.duration || 0));
+                    repsData.push(parseInt(e.inputs.reps || 0));
+                    roundsData.push(parseInt(e.inputs.rounds || 0));
+                    repsLeftData.push(parseInt(e.inputs.repsLeft || 0));
+                    repsRightData.push(parseInt(e.inputs.repsRight || 0));
+                    maxDurationSecData.push(parseInt(e.inputs.maxDurationSec || 0));
+                });
+            } else {
+                labels.push(dayLabel);
+                distanceData.push(0);
+                durationData.push(0);
+                repsData.push(0);
+                roundsData.push(0);
+                repsLeftData.push(0);
+                repsRightData.push(0);
+                maxDurationSecData.push(0);
+            }
+        } else {
+            labels.push(filter === 'week' ? getLabelForWeek(dObj) : getLabelForMonth(dObj));
+            distanceData.push(group.distance);
+            durationData.push(group.duration);
+            repsData.push(group.reps);
+            roundsData.push(group.rounds);
+            repsLeftData.push(group.repsLeft);
+            repsRightData.push(group.repsRight);
+            maxDurationSecData.push(group.maxDurationSec);
+        }
+    });
+
+    const datasets = [];
+    const colors = {
+        distance: { border: 'rgba(54, 162, 235, 1)', bg: 'rgba(54, 162, 235, 0.2)', label: 'Distanz (km)' },
+        duration: { border: 'rgba(255, 99, 132, 1)', bg: 'rgba(255, 99, 132, 0.2)', label: 'Dauer (Minuten)' },
+        reps: { border: 'rgba(75, 192, 192, 1)', bg: 'rgba(75, 192, 192, 0.2)', label: 'Wiederholungen' },
+        rounds: { border: 'rgba(153, 102, 255, 1)', bg: 'rgba(153, 102, 255, 0.2)', label: 'Runden' },
+        repsLeft: { border: 'rgba(255, 159, 64, 1)', bg: 'rgba(255, 159, 64, 0.2)', label: 'Wiederholungen (Links)' },
+        repsRight: { border: 'rgba(201, 203, 207, 1)', bg: 'rgba(201, 203, 207, 0.2)', label: 'Wiederholungen (Rechts)' },
+        maxDurationSec: { border: 'rgba(255, 205, 86, 1)', bg: 'rgba(255, 205, 86, 0.2)', label: 'Maximale Dauer (Sekunden)' }
+    };
+
+    let needsSecondaryAxis = false;
+
+    // Check which stats are available and push to datasets
+    if (statInfo.totals.distance > 0 || distanceData.some(d => d > 0)) {
         datasets.push({
-            label: 'Distanz (km)',
-            data: sortedEntries.map(e => e.inputs.distance || 0),
-            borderColor: 'rgba(54, 162, 235, 1)',
-            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            label: colors.distance.label,
+            data: distanceData,
+            borderColor: colors.distance.border,
+            backgroundColor: colors.distance.bg,
             borderWidth: 2,
-            pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+            pointBackgroundColor: colors.distance.border,
             tension: 0.3,
             fill: true,
             yAxisID: 'y'
         });
+    }
+
+    if (statInfo.totals.duration > 0 || durationData.some(d => d > 0)) {
+        const useSecondary = datasets.length > 0;
+        if (useSecondary) needsSecondaryAxis = true;
+
         datasets.push({
-            label: 'Dauer (Minuten)',
-            data: sortedEntries.map(e => e.inputs.duration || 0),
-            borderColor: 'rgba(255, 99, 132, 1)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            label: colors.duration.label,
+            data: durationData,
+            borderColor: colors.duration.border,
+            backgroundColor: colors.duration.bg,
             borderWidth: 2,
-            pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+            pointBackgroundColor: colors.duration.border,
             tension: 0.3,
             fill: true,
-            yAxisID: 'y1'
+            yAxisID: useSecondary ? 'y1' : 'y'
         });
-    } else {
-        // Single metric logic
-        let datasetLabel = 'Wert';
-        let dataPoints = [];
+    }
 
-        if (statInfo.totals.duration > 0 && statInfo.totals.distance === 0) {
-            datasetLabel = 'Dauer (Minuten)';
-            dataPoints = sortedEntries.map(e => e.inputs.duration || 0);
-        } else if (statInfo.totals.distance > 0) {
-            datasetLabel = 'Distanz (km)';
-            dataPoints = sortedEntries.map(e => e.inputs.distance || 0);
-        } else if (statInfo.totals.reps > 0) {
-            datasetLabel = 'Wiederholungen';
-            dataPoints = sortedEntries.map(e => e.inputs.reps || 0);
-        } else if (statInfo.totals.rounds > 0) {
-            datasetLabel = 'Runden';
-            dataPoints = sortedEntries.map(e => e.inputs.rounds || 0);
-        } else if (statInfo.totals.repsLeft > 0 || statInfo.totals.repsRight > 0) {
-            datasetLabel = 'Wiederholungen (Gesamt L+R)';
-            dataPoints = sortedEntries.map(e => (parseInt(e.inputs.repsLeft || 0) + parseInt(e.inputs.repsRight || 0)));
-        } else if (statInfo.totals.maxDurationSec > 0) {
-            datasetLabel = 'Maximale Dauer (Sekunden)';
-            dataPoints = sortedEntries.map(e => e.inputs.maxDurationSec || 0);
-        }
-
+    if (statInfo.totals.reps > 0 || repsData.some(d => d > 0)) {
         datasets.push({
-            label: datasetLabel,
-            data: dataPoints,
-            borderColor: 'rgba(54, 162, 235, 1)',
-            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            label: colors.reps.label,
+            data: repsData,
+            borderColor: colors.reps.border,
+            backgroundColor: colors.reps.bg,
             borderWidth: 2,
-            pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+            pointBackgroundColor: colors.reps.border,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'y'
+        });
+    }
+
+    if (statInfo.totals.rounds > 0 || roundsData.some(d => d > 0)) {
+        datasets.push({
+            label: colors.rounds.label,
+            data: roundsData,
+            borderColor: colors.rounds.border,
+            backgroundColor: colors.rounds.bg,
+            borderWidth: 2,
+            pointBackgroundColor: colors.rounds.border,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'y'
+        });
+    }
+
+    if (statInfo.totals.repsLeft > 0 || repsLeftData.some(d => d > 0)) {
+        datasets.push({
+            label: colors.repsLeft.label,
+            data: repsLeftData,
+            borderColor: colors.repsLeft.border,
+            backgroundColor: colors.repsLeft.bg,
+            borderWidth: 2,
+            pointBackgroundColor: colors.repsLeft.border,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'y'
+        });
+    }
+
+    if (statInfo.totals.repsRight > 0 || repsRightData.some(d => d > 0)) {
+        datasets.push({
+            label: colors.repsRight.label,
+            data: repsRightData,
+            borderColor: colors.repsRight.border,
+            backgroundColor: colors.repsRight.bg,
+            borderWidth: 2,
+            pointBackgroundColor: colors.repsRight.border,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'y'
+        });
+    }
+
+    if (statInfo.totals.maxDurationSec > 0 || maxDurationSecData.some(d => d > 0)) {
+        datasets.push({
+            label: colors.maxDurationSec.label,
+            data: maxDurationSecData,
+            borderColor: colors.maxDurationSec.border,
+            backgroundColor: colors.maxDurationSec.bg,
+            borderWidth: 2,
+            pointBackgroundColor: colors.maxDurationSec.border,
             tension: 0.3,
             fill: true,
             yAxisID: 'y'
@@ -656,7 +860,7 @@ function showChartForExercise(statInfo) {
                 },
                 y1: {
                     type: 'linear',
-                    display: (statInfo.id === 'ex-1' || statInfo.id === 'ex-2'),
+                    display: needsSecondaryAxis,
                     position: 'right',
                     beginAtZero: true,
                     grid: {
