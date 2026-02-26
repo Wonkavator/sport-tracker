@@ -40,10 +40,11 @@ function init() {
     appData.exercises = getCustomExercises();
 
     // Auto-scrub orphaned entries (hotfix for previous deletion bug)
+    // Auto-scrub orphaned entries (hotfix for previous deletion bug)
     let entries = getAllEntries();
     let validIds = appData.exercises.map(e => e.id);
     let originalLength = entries.length;
-    entries = entries.filter(e => validIds.indexOf(e.exerciseId) !== -1);
+    entries = entries.filter(e => validIds.includes(e.exerciseId));
     if (entries.length < originalLength) {
         localStorage.setItem('training_tracker_data', JSON.stringify(entries));
         console.log(`Scrubbed ${originalLength - entries.length} orphaned entries.`);
@@ -189,8 +190,7 @@ function showView(viewId) {
 
         console.log('Hiding all active views...');
         // Hide all views
-        Object.keys(views).forEach(key => {
-            const view = views[key];
+        Object.values(views).forEach(view => {
             if (view) view.classList.remove('active');
         });
 
@@ -200,8 +200,7 @@ function showView(viewId) {
 
         console.log('Updating Nav Activity...');
         // Update Nav Activity
-        Object.keys(navBtns).forEach(key => {
-            const btn = navBtns[key];
+        Object.values(navBtns).forEach(btn => {
             if (btn) btn.classList.remove('active');
         });
         if (navBtns[viewId]) navBtns[viewId].classList.add('active');
@@ -378,11 +377,7 @@ function renderDashboard() {
         // Add date label
         const dateLabel = document.createElement('div');
         dateLabel.className = 'day-header-date';
-        const d = dayData.dayObj.getDate().toString();
-        const m = (dayData.dayObj.getMonth() + 1).toString();
-        const dd = d.length < 2 ? '0' + d : d;
-        const mm = m.length < 2 ? '0' + m : m;
-        const dStr = `${dd}.${mm}.`;
+        const dStr = `${String(dayData.dayObj.getDate()).padStart(2, '0')}.${String(dayData.dayObj.getMonth() + 1).padStart(2, '0')}.`;
         dateLabel.textContent = dStr;
         col.appendChild(dateLabel);
 
@@ -390,8 +385,7 @@ function renderDashboard() {
         dayData.entries.forEach(entry => {
             const block = document.createElement('div');
             block.className = `entry-block ${entry.catId}`;
-            const ex = getExerciseById(entry.exerciseId);
-            const exName = ex ? ex.name : 'Eintrag';
+            const exName = getExerciseById(entry.exerciseId)?.name || 'Eintrag';
             block.title = `${exName} (Zum Bearbeiten klicken)`;
 
             // Add name label to block
@@ -399,7 +393,7 @@ function renderDashboard() {
             nameSpan.className = 'entry-name';
             // Simplify long names for mobile view
             let displayName = exName.replace(' - MOTOmed', '');
-            if (displayName.indexOf('Rollstuhl:') !== -1) displayName = displayName.replace('Rollstuhl: ', '');
+            if (displayName.includes('Rollstuhl:')) displayName = displayName.replace('Rollstuhl: ', '');
 
             nameSpan.textContent = displayName;
             block.appendChild(nameSpan);
@@ -487,10 +481,9 @@ function renderAnalysis() {
 
     allEntries.forEach(entry => {
         if (!exerciseStats[entry.exerciseId]) {
-            const ex = getExerciseById(entry.exerciseId);
             exerciseStats[entry.exerciseId] = {
                 id: entry.exerciseId,
-                name: ex ? ex.name : 'Unbekannt',
+                name: getExerciseById(entry.exerciseId)?.name || 'Unbekannt',
                 catId: entry.catId,
                 totals: {
                     duration: 0,
@@ -519,10 +512,7 @@ function renderAnalysis() {
     });
 
     // Render list
-    Object.keys(exerciseStats).forEach(key => {
-        const stat = exerciseStats[key];
-        stat.entries = allEntries.filter(e => e.exerciseId === stat.id);
-
+    Object.values(exerciseStats).forEach(stat => {
         const item = document.createElement('div');
         item.className = `analysis-item ${stat.catId}`;
 

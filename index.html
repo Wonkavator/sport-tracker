@@ -6,7 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Training Tracker</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="css/styles.css?v=11">
+    <link rel="stylesheet" href="css/styles.css?v=16">
+
+    <!-- Polyfills for old Android browsers (Silk/WebView) via core-js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.35.1/minified.js"></script>
+    <!-- Babel standalone to transpile ES6 (Arrow Functions, etc.) to ES5 on-the-fly -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 
 <body>
@@ -212,9 +217,11 @@
 
     <!-- Chart.js via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="js/data.js?v=13"></script>
-    <script src="js/storage.js?v=13"></script>
-    <script src="js/app.js?v=13"></script>
+
+    <!-- Load custom scripts through Babel for ES5 compatibility -->
+    <script type="text/babel" src="js/data.js?v=16"></script>
+    <script type="text/babel" src="js/storage.js?v=16"></script>
+    <script type="text/babel" src="js/app.js?v=16"></script>
     <script>
         // Register Service Worker for PWA / Offline capability
         if ('serviceWorker' in navigator) {
