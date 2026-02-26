@@ -136,8 +136,10 @@ function getEntriesForDate(dateString) {
 function formatDateToLocalString(date) {
     const d = new Date(date);
     const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const m = String(d.getMonth() + 1);
+    const dayStr = String(d.getDate());
+    const month = m.length < 2 ? '0' + m : m;
+    const day = dayStr.length < 2 ? '0' + dayStr : dayStr;
     return `${year}-${month}-${day}`;
 }
 

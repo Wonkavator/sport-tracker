@@ -57,7 +57,7 @@ function loadCustomExercises() {
                 let addedAny = false;
 
                 defaultExercises.forEach(ex => {
-                    if (!customIds.includes(ex.id)) {
+                    if (customIds.indexOf(ex.id) === -1) {
                         ex.isCustom = true;
                         customEx.push(ex);
                         addedAny = true;
