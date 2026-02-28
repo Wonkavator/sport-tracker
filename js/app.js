@@ -114,6 +114,63 @@ function init() {
             showView('dashboard'); // Return to dashboard, exiting the edit form
         }
     });
+
+    // Handle Data Export
+    document.getElementById('btn-export-data').addEventListener('click', () => {
+        const backupData = {
+            entries: localStorage.getItem('training_tracker_data'),
+            customExercises: localStorage.getItem('training_tracker_custom_exercises'),
+            theme: localStorage.getItem('theme'),
+            exportDate: new Date().toISOString()
+        };
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `training_tracker_backup_${formatDateToLocalString(new Date())}.json`);
+        document.body.appendChild(downloadAnchorNode); // required for firefox
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    });
+
+    // Handle Data Import Trigger
+    const fileInput = document.getElementById('import-file-input');
+    document.getElementById('btn-import-data').addEventListener('click', () => {
+        if (confirm("Warnung: Ein Import überschreibt alle deine aktuellen Daten auf diesem Gerät! Möchtest du fortfahren?")) {
+            fileInput.click();
+        }
+    });
+
+    // Handle Data Import Read
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            try {
+                const importedData = JSON.parse(event.target.result);
+
+                // Validate payload
+                if (importedData.entries !== undefined && importedData.customExercises !== undefined) {
+                    localStorage.setItem('training_tracker_data', importedData.entries);
+                    localStorage.setItem('training_tracker_custom_exercises', importedData.customExercises);
+                    if (importedData.theme) localStorage.setItem('theme', importedData.theme);
+
+                    alert("Daten erfolgreich importiert! Die App wird nun neu geladen.");
+                    window.location.reload();
+                } else {
+                    alert("Import fehlgeschlagen: Die Datei hat nicht das erwartete Format.");
+                }
+            } catch (err) {
+                console.error("Import error:", err);
+                alert("Import fehlgeschlagen: Datei konnte nicht gelesen werden.");
+            }
+            // Reset file input so the same file can be selected again if needed
+            fileInput.value = "";
+        };
+        reader.readAsText(file);
+    });
 }
 
 // Theme Logic
@@ -1336,63 +1393,6 @@ function showDeleteModal(ex) {
 
         renderCustomExercisesList();
         renderExerciseList();
-    });
-
-    // Handle Data Export
-    document.getElementById('btn-export-data').addEventListener('click', () => {
-        const backupData = {
-            entries: localStorage.getItem('training_tracker_data'),
-            customExercises: localStorage.getItem('training_tracker_custom_exercises'),
-            theme: localStorage.getItem('theme'),
-            exportDate: new Date().toISOString()
-        };
-
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `training_tracker_backup_${formatDateToLocalString(new Date())}.json`);
-        document.body.appendChild(downloadAnchorNode); // required for firefox
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-    });
-
-    // Handle Data Import Trigger
-    const fileInput = document.getElementById('import-file-input');
-    document.getElementById('btn-import-data').addEventListener('click', () => {
-        if (confirm("Warnung: Ein Import überschreibt alle deine aktuellen Daten auf diesem Gerät! Möchtest du fortfahren?")) {
-            fileInput.click();
-        }
-    });
-
-    // Handle Data Import Read
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function (event) {
-            try {
-                const importedData = JSON.parse(event.target.result);
-
-                // Validate payload
-                if (importedData.entries !== undefined && importedData.customExercises !== undefined) {
-                    localStorage.setItem('training_tracker_data', importedData.entries);
-                    localStorage.setItem('training_tracker_custom_exercises', importedData.customExercises);
-                    if (importedData.theme) localStorage.setItem('theme', importedData.theme);
-
-                    alert("Daten erfolgreich importiert! Die App wird nun neu geladen.");
-                    window.location.reload();
-                } else {
-                    alert("Import fehlgeschlagen: Die Datei hat nicht das erwartete Format.");
-                }
-            } catch (err) {
-                console.error("Import error:", err);
-                alert("Import fehlgeschlagen: Datei konnte nicht gelesen werden.");
-            }
-            // Reset file input so the same file can be selected again if needed
-            fileInput.value = "";
-        };
-        reader.readAsText(file);
     });
 }
 
