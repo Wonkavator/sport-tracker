@@ -225,7 +225,9 @@ function openInputForm(exercise, existingEntry = null) {
     currentExercise = exercise;
     editingEntryId = existingEntry ? existingEntry.id : null;
 
-    document.getElementById('input-exercise-title').textContent = existingEntry ? `Bearbeiten: ${exercise.name}` : exercise.name;
+    const titleEl = document.getElementById('input-exercise-title');
+    titleEl.textContent = existingEntry ? `Bearbeiten: ${exercise.name}` : exercise.name;
+    titleEl.className = exercise.catId;
 
     const container = document.getElementById('dynamic-inputs');
     container.innerHTML = ''; // clear form
