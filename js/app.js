@@ -135,16 +135,21 @@ function init() {
 
     // Handle Data Import Trigger
     const fileInput = document.getElementById('import-file-input');
-    document.getElementById('btn-import-data').addEventListener('click', () => {
-        if (confirm("Warnung: Ein Import überschreibt alle deine aktuellen Daten auf diesem Gerät! Möchtest du fortfahren?")) {
-            fileInput.click();
-        }
+    document.getElementById('btn-import-data').addEventListener('click', (e) => {
+        // Direct click without confirm dialog to ensure mobile browsers
+        // (especially iOS Safari) don't block the file picker.
+        fileInput.click();
     });
 
     // Handle Data Import Read
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        if (!confirm("WARNUNG: Dieser Import überschreibt ALLE deine aktuellen Trainingsdaten auf diesem Gerät! Möchtest du wirklich fortfahren?")) {
+            fileInput.value = "";
+            return;
+        }
 
         const reader = new FileReader();
         reader.onload = function (event) {
