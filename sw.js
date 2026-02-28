@@ -1,4 +1,4 @@
-const CACHE_NAME = 'training-tracker-v5';
+const CACHE_NAME = 'training-tracker-v6';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -8,6 +8,8 @@ const ASSETS_TO_CACHE = [
     './js/app.js?v=23',
     './manifest.json',
     './icon.svg',
+    './icon-192.png',
+    './icon-512.png',
     'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
