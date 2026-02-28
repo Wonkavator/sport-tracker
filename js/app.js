@@ -494,25 +494,81 @@ function renderProgress() {
         return;
     }
 
+    // --- All-time stats calculation ---
     let totalMins = 0;
     let totalKm = 0;
+    let firstTimestamp = Date.now();
 
     allEntries.forEach(entry => {
         if (entry.inputs.duration) totalMins += parseInt(entry.inputs.duration, 10);
         if (entry.inputs.distance) totalKm += parseFloat(entry.inputs.distance);
+        if (entry.timestamp < firstTimestamp) firstTimestamp = entry.timestamp;
     });
 
     const totalHours = Math.floor(totalMins / 60);
     const remainingMins = totalMins % 60;
 
+    // --- Averages Calculation ---
+    // Calculate how many weeks since the very first entry was tracked
+    const msInWeek = 7 * 24 * 60 * 60 * 1000;
+    let weeksActive = Math.ceil((Date.now() - firstTimestamp) / msInWeek);
+    if (weeksActive < 1) weeksActive = 1; // At least 1 week to avoid division by zero
+
+    const avgMinsPerWeek = Math.round(totalMins / weeksActive);
+    const avgKmPerWeek = (totalKm / weeksActive).toFixed(1);
+    const avgEntriesPerWeek = (allEntries.length / weeksActive).toFixed(1);
+
+    // --- Current Week stats calculation (always relative to exact current week) ---
+    const currentWeekData = getEntriesForCurrentWeek(); // Need to make sure this gets data for offset 0 regardless of UI state
+    let currentWeekMins = 0;
+    let currentWeekKm = 0;
+    let currentWeekEntriesCount = 0;
+
+    currentWeekData.forEach(day => {
+        day.entries.forEach(entry => {
+            currentWeekEntriesCount++;
+            if (entry.inputs.duration) currentWeekMins += parseInt(entry.inputs.duration, 10);
+            if (entry.inputs.distance) currentWeekKm += parseFloat(entry.inputs.distance);
+        });
+    });
+
+    // --- Render HTML ---
     const statsHtml = `
+        <h3 style="margin-top: 1rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Aktuelle Woche vs. Ø</h3>
+        
+        <div class="progress-card cat-blue" style="padding: 1.5rem; border-radius: 12px; color: white; margin-bottom: 1rem;">
+            <h3>⏱️ Trainingszeit (Woche)</h3>
+            <p style="font-size: 2rem; font-weight: bold;">${Math.floor(currentWeekMins / 60)} Std ${currentWeekMins % 60} Min</p>
+            <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.9;">Ø Bisher: ${Math.floor(avgMinsPerWeek / 60)} Std ${avgMinsPerWeek % 60} Min</p>
+        </div>
+
         <div class="progress-card cat-yellow" style="padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem;">
-            <h3>🚴 MOTOmed Distanz</h3>
+            <h3>🚴 MOTOmed Distanz (Woche)</h3>
+            <p style="font-size: 2rem; font-weight: bold;">${currentWeekKm.toFixed(1)} km</p>
+            <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.9; color: #333;">Ø Bisher: ${avgKmPerWeek} km</p>
+        </div>
+
+        <div class="progress-card cat-green" style="padding: 1.5rem; border-radius: 12px; color: white; margin-bottom: 2rem;">
+            <h3>📊 Einheiten (Woche)</h3>
+            <p style="font-size: 2rem; font-weight: bold;">${currentWeekEntriesCount} Trainings</p>
+            <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.9;">Ø Bisher: ${avgEntriesPerWeek} Trainings</p>
+        </div>
+
+        <h3 style="border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">All-Time Meilensteine</h3>
+
+        <div class="progress-card cat-yellow" style="padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem;">
+            <h3>🏆 MOTOmed Gesamt</h3>
             <p style="font-size: 2rem; font-weight: bold;">${totalKm.toFixed(1)} km</p>
         </div>
-        <div class="progress-card cat-blue" style="padding: 1.5rem; border-radius: 12px; color: white;">
-            <h3>⏱️ Gesamttrainingszeit</h3>
+
+        <div class="progress-card cat-blue" style="padding: 1.5rem; border-radius: 12px; color: white; margin-bottom: 1rem;">
+            <h3>⌛ Gesamttrainingszeit</h3>
             <p style="font-size: 2rem; font-weight: bold;">${totalHours} Std ${remainingMins} Min</p>
+        </div>
+        
+        <div class="progress-card cat-green" style="padding: 1.5rem; border-radius: 12px; color: white; margin-bottom: 1rem;">
+            <h3>📈 Gesamteinheiten</h3>
+            <p style="font-size: 2rem; font-weight: bold;">${allEntries.length} Trainings</p>
         </div>
     `;
 
